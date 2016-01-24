@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset=utf-8>
+		<title>FS 017: Carpets and Rags, Free form</title>
+		<style>
+			body { margin: 0; }
+			canvas {
+                width: 100%;
+                height: 100%;
+                image-rendering: pixelated;
+            }
+		</style>
+        
+        <script id="fragmentShader" type="x-shader/x-fragment">
+            #define M_PI 3.1415926535897932384626433832795
+            
+			uniform float time;
+			uniform vec2 resolution;
+			uniform sampler2D tPrev;
+            
+            uniform int recurrence;
+
+			varying vec2 vUv;
+            
+            //
+            // utils
+            //
+            float rand(vec2 co){
+                return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+            }
+            
+            //
+            // scene
+            //
+            const float Q = 4.0;
+            const float M = 1.0;
+            
+            int add(int a, int b)
+            {
+                if (a == 0)
+                {
+                    if (b == 0)
+                        return 0;
+                    else if (b == 1)
+                        return 1;
+                    else if (b == 2)
+                        return 2;
+                    else if (b == 3)
+                        return 3;
+                }
+                else if (a == 1)
+                {
+                    if (b == 0)
+                        return 1;
+                    else if (b == 1)
+                        return 0;
+                    else if (b == 2)
+                        return 3;
+                    else if (b == 3)
+                        return 2;
+                }
+                else if (a == 2)
+                {
+                    if (b == 0)
+                        return 2;
+                    else if (b == 1)
+                        return 3;
+                    else if (b == 2)
+                        return 0;
+                    else if (b == 3)
+                        return 1;
+                }
+                else if (a == 3)
+                {
+                    if (b == 0)
+                        return 3;
+                    else if (b == 1)
+                        return 2;
+                    else if (b == 2)
+                        return 1;
+                    else if (b == 3)
+                        return 0;
+                }
+                
+                return 0;
+            }
+            
+            int mul(int a, int b)
+            {
+                if (a == 0 || b == 0)
+                {
+                    return 0;
+                }
+                else if (a == 1)
+                {
+                    if (b == 1)
+                        return 1;
+                    else if (b == 2)
+                        return 2;
+                    else if (b == 3)
+                        return 3;
+                }
+                else if (a == 2)
+                {
+                    if (b == 1)
+                        return 2;
+                    else if (b == 2)
+                        return 3;
+                    else if (b == 3)
+                        return 1;
+                }
+                else if (a == 3)
+                {
+                    if (b == 1)
+                        return 3;
+                    else if (b == 2)
+                        return 1;
+                    else if (b == 3)
+                        return 2;
+                }
+                
+                return 0;
+            }
+            
+            int f(vec3 c)
+            {
+                int x = int(c.x * Q + 0.5);
+                int y = int(c.y * Q + 0.5);
+                int z = int(c.z * Q + 0.5);
+            
+                // w2 + w + 1 = 0
+                // -(-1)^(1/3), (-1)^(2/3)
+                
+                if (recurrence == 0)
+                {
+                    // Bat in Cone
+                    // f(x, y, z ) = x + x2 + w y + z + z2
+                    return add(add(add(x, mul(x, x)), add(z, mul(z, z))), mul(2, y));
+                }
+                else if (recurrence == 1)
+                {
+                    // Bumerang
+                    // f(x, y, z ) = w x2 + x + w y2 + w z2 + (w + 1) z
+                    return add(add(mul(2, add(add(mul(x, x), mul(y, y)), mul(z, z))), x), mul(3, z));
+                }
+                else if (recurrence == 2)
+                {
+                    // Diamond
+                    // f(x, y, z) = w*x^2 + y + (w + 1)*y^2 + w*z^2
+                    return add(add(mul(2, add(mul(x, x), mul(z, z))), y), mul(3, mul(y, y)));
+                }
+                else if (recurrence == 3)
+                {
+                    // Dragonul
+                    // f(x, y, z ) = x2 + w x + (w + 1) y2 + w y + w z
+                    return add(add(mul(x, x), mul(2, add(add(x, y), z))), mul(3, mul(y, y)));
+                }
+                else if (recurrence == 4)
+                {
+                    // Infinity
+                    // f(x, y, z) = x2 + (w + 1) y2 + z
+                    return add(add(mul(x, x), mul(3, mul(y, y))), z);
+                }
+                else if (recurrence == 5)
+                {
+                    // Mothman
+                    // f(x, y, z) = x2 + (w + 1) y2 + z2
+                    return add(add(mul(x, x), mul(3, mul(y, y))), mul(z, z)); 
+                }
+                else if (recurrence == 6)
+                {
+                    // Open Peano
+                    // f(x, y, z) = w x2 + w y + w z2
+                    // 注意: 初期状態は a(i, 0) = a(0, j) = w + 1
+                    return mul(2, add(add(mul(x, x), y), mul(z, z)));
+                }
+                else if (recurrence == 7)
+                {
+                    // Single Bat
+                    // f(x, y, z) = x + (w + 1) x2 + w y2 + z + (w + 1) z2
+                    return add(add(add(x, z), mul(2, mul(y, y))), mul(3, add(mul(x, x), mul(z, z))));
+                }
+                else if (recurrence == 8)
+                {
+                    // Treasure
+                    // f(x, y, z) = w x + y + w z + 1
+                    return add(add(mul(2, add(x, z)), y), 1);
+                }
+                else if (recurrence == 9)
+                {
+                    // Vampire
+                    // f(x, y, z) = w x + (w + 1) x2 + (w + 1) y2 + w z + (w + 1) z2
+                    return add(mul(2, add(x, z)), mul(3, add(add(mul(x, x), mul(y, y)), mul(z, z))));
+                }
+                else if (recurrence == 10)
+                {
+                    // Rec1
+                    return add(y, mul(2, add(add(x, y), mul(z,z))));
+                }
+                else if (recurrence == 11)
+                {
+                    // Rec2
+                    return add(add(add(x, z), add(add(mul(x, x), mul(y, y)), 1)), mul(3, y));
+                }
+                else if (recurrence == 12)
+                {
+                    // Rec3
+                    return add(mul(3, mul(mul(x,x), z)), mul(1, y));
+                }
+                else if (recurrence == 13)
+                {
+                    // Rec4
+                    return add(mul(mul(3, mul(mul(x, x), mul(x, x))), mul(3, mul(mul(z, z), mul(z, z)))), mul(2, y));
+                }
+                else if (recurrence == 14)
+                {
+                    // Rec5
+                    return add(add(mul(3, mul(mul(x, x), mul(z, z))), mul(2, mul(mul(z, z), mul(x, x)))), mul(3, y));
+                }
+                else if (recurrence == 15)
+                {
+                    // Rec6
+                    return add(add(mul(3, add(mul(x, x), mul(z, z))), mul(2, add(mul(z, z), mul(x, x)))), mul(3, y));
+                }
+                else if (recurrence == 16)
+                {
+                    // Rec7
+                    return add(add(mul(3, add(mul(x, x), mul(z, y))), mul(2, add(mul(z, z), mul(x, x)))), mul(3, y));
+                }
+                else
+                {
+                    // Empty
+                    return add(add(x, y), z);
+                }
+            }
+            
+            float calc()
+            {
+                vec2 p = vUv;
+                
+                // a(i, 0) = a(0, j) = 1
+                if (p.x <= 0.01 || p.y <= 0.01)
+                {
+                    if (recurrence == 6)
+                    {
+                        // Open Peanoのみ
+                        return 3.0 / Q;
+                    }
+                    else
+                    {
+                        return 1.0 / Q;
+                    }
+                }
+                    
+                // 1ピクセルの距離
+                vec2 d = (1.0) / resolution;
+                vec3 a = vec3(
+                    + texture2D(tPrev, vec2(p.x - d.x, p.y)).b,
+                    + texture2D(tPrev, p - d               ).b,
+                    + texture2D(tPrev, vec2(p.x, p.y - d.y)).b
+                    );
+                
+                // a(i, j) = f(a(i, j-1), a(i-1, j-1), a(i-1, j))
+                return float(f(a)) / Q;
+            }
+            
+            //
+            // main
+            //
+			void main()
+            {
+                if (time < 0.0)
+                {
+                    gl_FragColor = vec4(1.0);
+                }
+                else
+                {
+                    float r = calc();
+                    gl_FragColor = vec4(
+                        r,
+                        r,
+                        r,
+                        1.0);
+                }
+			}
+        </script>
+
+        <script id="vertexShader" type="x-shader/x-fragment">
+            varying vec2 vUv;
+            
+            void main()
+            {
+                vUv = uv;
+                vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        </script>
+	</head>
+	<body style="overflow:hidden">
+        <p>
+			<input id="buttonReset" type="button" value="Reset" onclick="onButtonResetClick()">
+			<input id="buttonStop" type="button" value="Stop" onclick="onButtonStopClick()">
+            <select id="selectRecurrence" onchange="onChangeSelectRecurrence(this.selectedIndex)">
+                <option>Bat in Cone</option>
+                <option>Bumerang</option>
+                <option>Diamond</option>
+                <option>Dragonul</option>
+                <option>Infinity</option>
+                <option>Mothman</option>
+                <option>Open Peano</option>
+                <option>Single Bat</option>
+                <option>Treasure</option>
+                <option>Vampire</option>
+                <option>Rec1</option>
+                <option>Rec2</option>
+                <option>Rec3</option>
+                <option>Rec4</option>
+                <option>Rec5</option>
+                <option>Rec6</option>
+                <option>Rec7</option>
+                <option>Empty</option>
+            </select>
+        </p>
+        <script src="js/three.min.js"></script>
+        <script src="js/sceneFreeform.js"></script>
+	</body>
+</html>

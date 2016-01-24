@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset=utf-8>
+		<title>Canvas000 Carpets and Rugs</title>
+        <style type="text/css">
+            body { margin: 0; }
+            canvas { image-rendering: pixelated; }
+        </style>
+	</head>
+	<body>
+        <p>
+            <input id="buttonReset" type="button" value="Reset" onclick="update()">
+            / Q <input id="numberQ" type="number" value="3" min="1" max="255" step="1" oninput="onInputNumberQ(this.value)">
+            / M <input id="numberM" type="number" value="1" min="0" max="255" step="1" oninput="onInputNumberM(this.value)">
+            / Warmness <input id="numberM" type="number" value="0" min="0" max="255" step="1" oninput="onInputNumberWarmness(this.value)">
+        </p>
+        <!-- <canvas id="mainCanvas" width="4096" height="4096"></canvas> -->
+        
+        <script>
+            var scale = window.devicePixelRatio;
+            var canvas = document.createElement('canvas');
+            canvas.style.width = (window.innerWidth) + 'px';
+            canvas.style.height = (window.innerHeight) + 'px';
+            canvas.width = window.innerWidth * scale;
+            canvas.height = window.innerHeight * scale;
+            
+            var container = document.createElement('div');
+            container.style.width = (window.innerWidth - 50) + 'px';
+            container.style.height = (window.innerHeight - 100) + 'px';
+            container.style.borderStyle = 'solid';
+            container.style.borderWidth = 2 + 'px';
+            container.style.overflow = 'hidden';
+            container.appendChild(canvas);
+            document.body.appendChild(container);
+            
+            //var canvas = document.getElementById('mainCanvas')
+            var context = canvas.getContext('2d');
+            context.imageSmoothingEnabled= false;
+
+            var imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            var width = imageData.width, height = imageData.height;
+            var pixels = imageData.data;
+            
+            // warmness
+            // 0: cool
+            // 1: warm
+            var warmness = 1;
+            var Q = 3;
+            var M = 1;
+            
+            var carpet = new Array(width);
+            for (var i = 0; i < carpet.length; ++i)
+            {
+                carpet[i] = new Array(height);
+            }
+            
+            
+            // events //
+            function onInputNumberQ(value)
+            {
+                Q = value;
+            }
+            
+            function onInputNumberM(value)
+            {
+                M = value;
+            }
+            
+            function onInputNumberWarmness(value)
+            {
+                warmness = value;
+            }
+            
+            // main //
+            update();
+            
+            function update()
+            {
+                //
+                initCarpet();
+                calcCarpet();
+                
+                //
+                for (var y = 1; y < height; ++y) {
+                    for (var x = 1; x < width; ++x) {
+                        s = carpet[x][y] + carpet[x-1][y] + carpet[x][y-1] + carpet[x-1][y-1];
+                        var c = palette(s);
+                        
+                        var index = (y * width + x) * 4;
+                        pixels[index + 0] = c.r; // R
+                        pixels[index + 1] = c.g; // G
+                        pixels[index + 2] = c.b; // B
+                        pixels[index + 3] = 255; // A
+                    }
+                }
+
+                context.putImageData(imageData, 0, 0);
+            }
+            
+            function initCarpet()
+            {
+                for (var x = 0; x < width; ++x)
+                {
+                    for (var y = 0; y < height; ++y)
+                    {
+                        if (x == 0 || y == 0)
+                        {
+                            if (warmness == 0)
+                                carpet[x][y] = 1;
+                            else
+                                carpet[x][y] = (((x + y) % warmness) == 0) ? 1 : 0;
+                                
+                            // a(0, n), a(n, 0) の色は変化しないので、あらかじめ計算しておく
+                            s = carpet[x][y];
+                            var c = palette(s);
+                        
+                            var index = (y * width + x) * 4;
+                            pixels[index + 0] = c.r; // R
+                            pixels[index + 1] = c.g; // G
+                            pixels[index + 2] = c.b; // B
+                            pixels[index + 3] = 255; // A
+                        }
+                        else
+                        {
+                            carpet[x][y] = 0;
+                        }
+                    }
+                }
+            }
+            
+            function calcCarpet()
+            {
+                for (var i = 1; i < carpet.length; ++i)
+                {
+                    for (var j = 1; j < carpet[i].length; ++j)
+                    {
+                        // a(m, n) = a(m-1, n) + a(m, n-1) + a(m-1, n-1)
+                        // p_mn = a(m, n) mod Q
+                        carpet[i][j] = f(
+                            carpet[i - 1][j    ],
+                            carpet[i    ][j - 1],
+                            carpet[i - 1][j - 1]
+                            ) % Q;
+                    }
+                }
+            }
+            
+            function f(x, y, z)
+            {
+                // original (Passoja Lakhtakia)
+                //return x + y + z;
+                
+                // North West
+                return x + M * y + z;
+                
+                //var w = 1;
+                //return w * x * x + y + (w + 1.0) * y * y + w * z * z;
+            }
+            
+            function palette(s)
+            {
+                var l = (s / Q) / 2;
+                
+                return {
+                    r: Math.round(l * 255),
+                    g: Math.round(l * 255),
+                    b: Math.round(l * 255)
+                };
+            }
+        </script>
+	</body>
+</html>

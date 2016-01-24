@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset=utf-8>
+		<title>FS 017</title>
+		<style>
+			body { margin: 0; }
+			canvas {
+                width: 100%;
+                height: 100%;
+                image-rendering: pixelated;
+            }
+		</style>
+        
+        <script id="fragmentShader" type="x-shader/x-fragment">
+            #define M_PI 3.1415926535897932384626433832795
+            
+			uniform float time;
+			uniform vec2 resolution;
+			uniform sampler2D tPrev;
+            
+            uniform float Q;
+            uniform float M;
+
+			varying vec2 vUv;
+            
+            //
+            // utils
+            //
+            float rand(vec2 co){
+                return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+            }
+            
+            //
+            // scene
+            //
+            
+            float f(float x, float y, float z)
+            {
+                // Original
+                // x + M y + z;
+                int xx = int(x * Q + 0.5);
+                int yy = int(M * y * Q + 0.5);
+                int zz = int(z * Q + 0.5);
+                return float(xx + yy + zz) / Q;
+            }
+            
+            float calc()
+            {
+                vec2 p = vUv;
+                
+                // a(i, 0) = a(0, j) = 1
+                if (p.x <= 0.01 || p.y <= 0.01)
+                {
+                    return 1.0 / Q;
+                    //return texture2D(tPrev, p).b;
+                }
+                    
+                // 1ピクセルの距離
+                vec2 d = (1.0) / resolution;
+                
+                // a(i, j) = f(a(i, j-1), a(i-1, j-1), a(i-1, j))
+                return mod(f(
+                    + texture2D(tPrev, vec2(p.x - d.x, p.y)).b,
+                    + texture2D(tPrev, vec2(p.x, p.y - d.y)).b,
+                    + texture2D(tPrev, p - d               ).b
+                    ), 1.0);
+            }
+            
+            //
+            // main
+            //
+			void main()
+            {
+                if (time < 0.0)
+                {
+                    gl_FragColor = vec4(1.0);
+                    //gl_FragColor = vec4(mod(rand(gl_FragCoord.xy + vec2(35.9, 1000.01)), 1.0));
+                }
+                else
+                {
+                    float r = calc();
+                    gl_FragColor = vec4(
+                        - mod(r * 2.82, 0.5) + 0.95,
+                        mod(r * 7.77, 0.8) + 0.2,
+                        r,
+                        1.0);
+                }
+			}
+        </script>
+
+        <script id="vertexShader" type="x-shader/x-fragment">
+            varying vec2 vUv;
+            
+            void main()
+            {
+                vUv = uv;
+                vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        </script>
+	</head>
+	<body>
+        <p>
+			<input id="buttonReset" type="button" value="Reset" onclick="onButtonResetClick()">
+			<input id="buttonStop" type="button" value="Stop" onclick="onButtonStopClick()">
+            / Q <input id="numberQ" type="number" value="5" min="1" max="256" step="1" oninput="onInputNumberQ(this.value)">
+            / M <input id="numberM" type="number" value="1" min="-256" max="256" step="1" oninput="onInputNumberM(this.value)">
+        </p>
+        <script src="js/three.min.js"></script>
+        <script src="js/scene.js"></script>
+	</body>
+</html>
